@@ -1,0 +1,88 @@
+Bikes Bronze Dataset
+///Moving BikesRawData Table to Bronze Folder
+.alter table BikesRawData(
+Timestamp: datetime,
+BikepointID:	string,
+Street:	string,
+Neighbourhood:	string,
+Latitude:	dynamic,
+Longitude:	dynamic,
+No_Bikes:	long,
+No_Empty_Docks:	long
+)
+with (folder ="Bronze")
+
+Silver Dataset
+
+// into the table BikesTransformedData
+// set-or-replace for quick analysis Adhoc Query for analysis
+.set-or-replace BikesTransformedData <|
+BikesRawData
+| parse BikepointID with * "Bikepoints_" BikepointID:int 
+| extend  BikesToBeFilled = No_Empty_Docks - No_Bikes
+| extend Action = iff(BikesToBeFilled >0, tostring(BikesToBeFilled),"NA")
+
+
+// Putting the query in a function to transform Bronze raw data
+.create-or-alter  function  with (docstring ="Transforms raw bike data", folder = "SilverLayer") TransformBikeData(){
+    BikesRawData
+    | parse BikepointID with * "Bikepoints_" BikepointID:int 
+    | extend  BikesToBeFilled = No_Empty_Docks - No_Bikes
+    | extend Action = iff(BikesToBeFilled >0, tostring(BikesToBeFilled),"NA")
+}
+
+
+// IsEnabled (bool) - States if update policy is true - enabled, or false - disabled
+// source (string) - Name of the table that triggers invocation of the update policy
+// Query (string) - A query used to produce data for the update
+// IsTransactional (bool) - States if the update policy is transactional or not, default is false). If transactional and the update policy fails, the source table is not updated.
+// PropagateIngestionProperties (bool) - States if properties specified during ingestion to the source table, such as extent tags and creation time, apply to the target table
+// read more - https://aka.ms/updatepolicy
+
+// Enable update policy for Silver table using function
+
+.alter table BikesTransformedData policy update
+```[{
+    "IsEnabled": true,
+    "Source": "BikesRawData",
+    "Query": "TransformBikeData()",
+    "IsTransactional": false,
+    "PropagateIngestionProperties": false
+}]```
+
+
+
+// View a representation of the schema as a table with column names, column type, and data type.
+
+BikesTransformedData
+| getschema
+
+
+///Moving BikesTransformedData Table to Bronze Folder
+.alter table BikesTransformedData(
+Timestamp: datetime,
+BikepointID: int,
+Street:	string,
+Neighbourhood:	string,
+Latitude:	dynamic,
+Longitude:	dynamic,
+No_Bikes:	long,
+No_Empty_Docks:	long,
+BikesToBeFilled	: long,
+Action: string
+)
+with (folder ="Silver")
+
+
+Gold Layer Dataset
+// Materialized view
+.create-or-alter  materialized-view with (folder ="Gold") AggregateData on table BikesTransformedData
+{
+    BikesTransformedData
+    | summarize arg_max(Timestamp,No_Bikes) by BikepointID
+}
+
+// Visualise below
+AggregateData
+| sort by BikepointID
+|render columnchart with (ycolumns= No_Bikes, xcolumn=BikepointID)
