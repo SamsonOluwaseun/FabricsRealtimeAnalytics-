@@ -95,6 +95,23 @@ Triggers:
 - 🔁 **Full Fabric Integration**: Seamless flow between ingestion, storage, querying, alerts, and reporting
 
 ---
+## 🧭 Architecture Overview
+
+![Real-time Bike Architecture](./assets/Event_Processing_Workflow.png)
+
+## 📊 Real-Time Dashboard Sample
+
+Below is a snapshot of the live Fabric dashboard showing bike availability across London:
+
+![Dashboard Example](./assets/Realtime_report.png)
+![Eventhouse summary](./assets/eventhouse_report.png)
+
+## 🚨 Alerting & Activator Integration
+
+Example of alert rule triggering Teams/email notification when bike availability drops below threshold:
+
+![Alert Configuration](./assets/Alert_config.png)
+![Alert Example](./assets/Activator_Alert_email.png)
 
 ## 📦 Project Structure
 
